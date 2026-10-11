@@ -117,6 +117,15 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
   const { open, activeId } = useStore(state => state)
   const shortcut = useShortcuts(rows => rows.find(row => row.id === 'settings.open'))
   const { close, openSection } = actions
+  useEffect(() => {
+    const openWorkbenchSettings = (event: Event): void => {
+      actions.open()
+      const section: unknown = (event as CustomEvent).detail
+      if (typeof section === 'string') actions.openSection(section)
+    }
+    window.addEventListener('aipm-open-settings', openWorkbenchSettings)
+    return () => { window.removeEventListener('aipm-open-settings', openWorkbenchSettings) }
+  }, [actions])
   const [requestedOnboarding, setRequestedOnboarding] = useState<string | undefined>()
   const [completedOnboarding, setCompletedOnboarding] = useState<ReadonlySet<string>>(() => new Set())
   const [showRecovery, setShowRecovery] = useState(false)

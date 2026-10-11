@@ -307,6 +307,81 @@ export function apply(ctx: Context): void {
       name: 'shell.overlay', id: 'workspace.row-toast', locale: NS, store: viewStore, inject: rowToastInjected,
     }, RowActionToast)
   })
+  // Project navigation selects an existing main Session before considering a blank one.
+  ctx.effect(() => {
+    let navigation = 0
+    let disposed = false
+    let searching: AbortController | undefined
+    const key = 'aipm.simin.sessions.v1'
+    const remembered = (): Record<string, unknown> => {
+      try {
+        const value: unknown = JSON.parse(localStorage.getItem(key) ?? '{}')
+        return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {}
+      } catch (error: unknown) { void error; return {} }
+    }
+    const onOpen = (event: Event): void => {
+      const value: unknown = event instanceof CustomEvent ? event.detail : undefined
+      const details = typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
+      const path = typeof value === 'string' ? value : typeof details.path === 'string' ? details.path : ''
+      if (!path) return
+      const token = ++navigation
+      const open = async (): Promise<void> => {
+        const workspace = await workspaces.create({ path })
+        await sessions.refresh()
+        if (disposed || token !== navigation) return
+        const state = sessions.list.getSnapshot()
+        const ids = state.ids.filter(id => state.byId[id]?.cwd === path && state.byId[id].origin !== 'subagent' && !workspaces.list.getSnapshot().archivedSessionIds.includes(id))
+        const requested = typeof details.sessionId === 'string' ? details.sessionId : remembered()[path]
+        const main = ids.find(id => id === requested) ?? ids.filter(id => !state.byId[id]?.blank)
+          .sort((left, right) => (state.byId[right]?.updatedAt ?? 0) - (state.byId[left]?.updatedAt ?? 0))[0]
+        const prepare = (id: SessionId): void => {
+          if (disposed || token !== navigation) return
+          const saved = remembered()
+          saved[path] = id
+          localStorage.setItem(key, JSON.stringify(saved))
+          if (typeof details.draft === 'string' && details.draft.trim()) {
+            const binding = sessions.binding(id)
+            if (binding === undefined || ctx.get('conversation')?.input.requestDraftInitialization(binding, { prompt: details.draft }) === 'blocked') throw new Error('Draft initialization unavailable')
+          }
+          window.dispatchEvent(new CustomEvent('aipm-workspace-ready', { detail: { path, sessionId: id } }))
+        }
+        if (main !== undefined) { uiWorkspace.openSession(main); prepare(main) }
+        else await uiWorkspace.openWorkspace(workspace.workspaceId, prepare)
+      }
+      void open().catch((error: unknown) => {
+        console.warn('Simin project connection:', error)
+        if (!disposed && token === navigation) window.dispatchEvent(new CustomEvent('aipm-workspace-error', { detail: path }))
+      })
+    }
+    const onSearch = (event: Event): void => {
+      const value: unknown = event instanceof CustomEvent ? event.detail : undefined
+      if (typeof value !== 'object' || value === null || !('query' in value) || !('id' in value)
+        || typeof value.query !== 'string' || typeof value.id !== 'string') return
+      searching?.abort()
+      const controller = new AbortController()
+      searching = controller
+      const id = value.id
+      void sessions.search(value.query, controller.signal).then((result) => {
+        if (disposed || controller.signal.aborted) return
+        if (!result.ok) { window.dispatchEvent(new CustomEvent('aipm-search-results', { detail: { id, error: true } })); return }
+        const state = sessions.list.getSnapshot()
+        const items = result.value.items.flatMap((hit) => {
+          const summary = state.byId[hit.sessionId]
+          if (summary?.cwd === undefined) return []
+          const workspace = workspaces.list.getSnapshot().items.find(row => row.path === summary.cwd)
+          if (workspace === undefined) return []
+          const project = workspace.path.split('/').at(-1) ?? workspace.title
+          return [{ sessionId: hit.sessionId, title: summary.displayTitle, snippet: hit.snippet, project, path: workspace.path }]
+        })
+        window.dispatchEvent(new CustomEvent('aipm-search-results', { detail: { id, items } }))
+      }).catch((error: unknown) => {
+        if (!disposed && !controller.signal.aborted) { console.warn('Simin search:', error); window.dispatchEvent(new CustomEvent('aipm-search-results', { detail: { id, error: true } })) }
+      })
+    }
+    window.addEventListener('aipm-open-project', onOpen)
+    window.addEventListener('aipm-search-conversations', onSearch)
+    return () => { disposed = true; navigation++; searching?.abort(); window.removeEventListener('aipm-open-project', onOpen); window.removeEventListener('aipm-search-conversations', onSearch) }
+  }, 'workspace: Simin project navigation and search')
   ctx.slots.inject('conversation.hero.workspace', () => ctx.slots.register(
     {
       name: 'conversation.hero.workspace',

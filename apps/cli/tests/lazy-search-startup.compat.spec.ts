@@ -16,13 +16,13 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
+import { evaluate } from '@deepseek-ai/cordis-plugin-loader'
 import { describe, expect, it } from 'vitest'
 
 const repoRoot = fileURLToPath(new URL('../../../', import.meta.url))
 const builtBin = join(repoRoot, 'apps/cli/lib/bin.js')
 const webDist = join(repoRoot, 'apps/web/dist/index.html')
-// Full-text session search ships off (`openAt: never` on both layers): the
-// base patch carries the default, and the web restatement must not re-enable it.
+// Web keeps full-text search disabled; Desktop opens its index on first search.
 const baseConfigPath = join(repoRoot, 'packages/bundle/base/cordis.patch.yml')
 const webConfigPath = join(repoRoot, 'packages/bundle/web-app/cordis.patch.yml')
 const requireBuiltArtifacts = process.env.DSH_REQUIRE_BUILT_CLI_SMOKE === '1'
@@ -99,6 +99,15 @@ function runBuiltWeb(cwd: string): Promise<{ stdout: string; stderr: string; cod
   })
 }
 
+it('enables conversation search only for the Desktop profile', async () => {
+  const rows = (yaml.load(await readFile(webConfigPath, 'utf8'), { schema: configSchema }) as PatchEntry[])
+    .flatMap(entry => entry.insert ?? [entry])
+  const expression = rows.find(row => row.id === 'session-query-sqlite')?.config?.openAt
+  expect(typeof expression).toBe('string')
+  expect(evaluate({ get: () => ({ name: 'desktop' }) }, String(expression))).toBe('first-search')
+  expect(evaluate({ get: () => ({ name: 'web' }) }, String(expression))).toBe('never')
+})
+
 describe.skipIf(!requireBuiltArtifacts)('built CLI lazy-search startup', () => {
   it('boots and disposes the shipped composition with full-text search off by default', async () => {
     expect(existsSync(builtBin), `missing built CLI ${resolve(builtBin)}; run pnpm build`).toBe(true)
@@ -111,8 +120,7 @@ describe.skipIf(!requireBuiltArtifacts)('built CLI lazy-search startup', () => {
     const webRow = webRows.find(row => row.id === 'session-query-sqlite')
     expect(baseRow?.config?.openAt).toBe('never')
     expect(baseRow?.disabled).toBeUndefined()
-    // The web restatement keeps the shipped default; opting in is a later layer's override.
-    expect(webRow?.config?.openAt).toBe('never')
+    expect(webRow?.config?.openAt).toBe("ctx.get('profileContext')?.name === 'desktop' ? 'first-search' : 'never'")
     expect(webRow?.disabled).toBeUndefined()
 
     const cwd = await mkdtemp(join(tmpdir(), 'dsh-cli-lazy-search-'))

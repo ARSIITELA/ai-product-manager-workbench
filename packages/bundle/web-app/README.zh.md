@@ -13,7 +13,7 @@ kind: "package-bundle"
 
 ## 概述
 
-运行 `dsh --profile web`，获得浏览器内的聊天、模型与设置管理以及会话历史，并与其他 dsh 表层共用同一套模型访问、工具与安全默认值。启动时会打印带 token 的 URL，通常还会在默认浏览器中打开；SSH 会话和 `--no-open` 需要手动打开。你可以更改端口并允许额外主机，但不能绑定所有网络接口。跨机访问支持在剥离前缀的代理之后公告一个公开的 HTTP(S) URL。一次性的命令行任务应使用 `dsh-headless`。
+该层提供本地 Simin 工作台与现有的浏览器对话、模型设置和会话历史，管理项目文档、保存审阅、搜索与可恢复的回收站。Desktop profile 管理本地服务。Simin 文件接口仅接受本机请求，其他 Web 能力沿用上游部署设置。
 
 ## 目录
 
@@ -30,6 +30,14 @@ kind: "package-bundle"
 ## 使用本包
 
 启动 GUI、打开浏览器，然后开始与 agent（智能体）对话。flag 用于微调本次调用。
+
+### 本地工作台行为
+
+Simin 的 `/aipm/*` 接口仅接受本机请求，管理真实项目目录、Markdown/文本读取、内容版本操作、回收站、全文搜索及保存提案。正文默认保留在当前仓库的 `projects/` 下，随包补丁中的 `SIMIN_PROJECT_ROOT` 可以指定其他可写目录；`.simin/` 保存回收站和提案元数据。现有 `write`、`edit` 工具在这些项目工作区内等待预览确认，其他工作区照常委托执行。Simin 项目拒绝 shell 与脚本工具，避免绕过确认。该策略使用工具事件，不修改 Agent loop。文件操作在本进程内串行，并拒绝过期内容版本；外部编辑器仍可能在版本检查与系统写入之间产生竞争。
+
+Desktop profile 在首次搜索时打开现有的内存会话搜索索引。Web 的会话全文搜索保持关闭，部署补丁可自行启用。
+
+运行 `dsh --profile web`，获得浏览器内的聊天、模型与设置管理以及会话历史，并与其他 dsh 表层共用同一套模型访问、工具与安全默认值。启动时会打印带 token 的 URL，通常还会在默认浏览器中打开；SSH 会话和 `--no-open` 需要手动打开。你可以更改端口并允许额外主机，但不能绑定所有网络接口。跨机访问支持在剥离前缀的代理之后公告一个公开的 HTTP(S) URL。一次性的命令行任务应使用 `dsh-headless`。
 
 ### 启动 Web GUI
 
@@ -55,6 +63,7 @@ dsh --profile web --no-open --port 8080
 | `surfaceContext` | `true` | 给 agent 提供 GUI 定位上下文，并把 `DSH_WEB_URL` 暴露给其 shell 命令 |
 | `publicUrl` | 未设置 | 对外公告的 HTTP(S) 应用根；否则公告监听器的 loopback URL |
 | `trustedHosts` | `[]` | 允许从网络访问 GUI 的额外主机 |
+| `projectRoot` | 仓库或运行时的 `projects/` | 工作台项目目录；相对路径覆盖值从 Host 工作目录解析 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-web-app)列出了本运行时插件接受的字段及其 JSDoc。随发行版交付的组合插入 `schedule` 服务行与 `ui-schedule` 任务页面行，时钟读数与四个提醒工具则属于 `standard`、`cordis` 与 `ptc` 三个 preset。这三个 preset 的 `tool-subagent` 与 `tool-subagent-fork` 两行都 deny 这四个工具，因此被委派子 agent 的作用域不会列出它们。
 

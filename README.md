@@ -1,8 +1,10 @@
-# DeepSeek Harness
+# Xiaozhao Lab · AI Product Manager Workbench
 
 English | [中文](README.zh.md)
 
-DeepSeek Harness (`dsh`) is an open-source agent harness developed by [DeepSeek AI](https://deepseek.com).
+Xiaozhao Lab is a local AI product manager workbench with six document tasks: initiation reports, PRDs, competitive analysis, AI evaluation, prompt plans, and version roadmaps. Tasks prepare editable drafts in project conversations, and documents can be downloaded as Markdown. See the [workbench guide](packages/client/ui-layout/README.md).
+
+This workbench extends [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), the open-source agent harness developed by [DeepSeek AI](https://deepseek.com), and retains its [MIT license](LICENSE). Run this repository from source to use the custom interface.
 
 It is built on an **everything-is-a-plugin** architecture and powered by [Cordis](https://github.com/cordiverse/cordis), whose design is described in [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512).
 
@@ -16,9 +18,9 @@ Review the [safety notice](SAFETY.md) before running the project.
 
 ## Run
 
-### Run from `npm`
+### Upstream runtime from `npm`
 
-Install `Node.js`, then run:
+The npm package starts the upstream harness. Install `Node.js`, then run:
 
 ```sh
 npx @deepseek-ai/dsh web
@@ -28,11 +30,9 @@ The command starts the Web UI at `http://127.0.0.1:3080` by default and opens it
 
 ### Run from source
 
-To run from a repository checkout:
+To run this workbench, open a terminal in the downloaded or cloned repository checkout:
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
 pnpm install
 pnpm run build
 pnpm dsh web

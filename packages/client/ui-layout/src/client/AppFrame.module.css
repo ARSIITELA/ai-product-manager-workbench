@@ -75,7 +75,7 @@
    to the opaque centre: on the translucent sidebar the alpha border mixes
    with the wallpaper and reads as a dark seam. */
 :global([data-platform='darwin']) .frame {
-  background: transparent;
+  background: #fff;
 }
 
 /* The constant step below the window's top strip (traffic lights, sidebar
@@ -108,19 +108,7 @@
 }
 
 :global([data-platform='darwin']) .sidebarCol {
-  /* A blue wash over the top of the translucent tint, gone by a third of the
-     column; a faint blue-grey-violet rises through the bottom third; and a
-     faint blue cast is mixed into the tint itself. Every layer stays
-     transparent so vibrancy shows. */
-  background:
-    linear-gradient(
-      to bottom,
-      rgb(122 155 240 / 0.1),
-      rgb(122 155 240 / 0) 35%,
-      rgb(143 137 184 / 0) 68%,
-      rgb(143 137 184 / 0.09)
-    ),
-    color-mix(in srgb, color-mix(in srgb, var(--dsw-specific-sidebar-fill) 97%, rgb(122 155 240)) 40%, transparent);
+  background: #fff;
   border-right: none;
 }
 
@@ -143,7 +131,10 @@
    them with a 90%-opaque fill of the same token in both themes (the dark
    selector repeats so this outranks its thinner fill). */
 @media (prefers-reduced-transparency: reduce) {
-  :global([data-platform='darwin']) .sidebarCol,
+  :global([data-platform='darwin']) .sidebarCol {
+    background: #fff;
+  }
+
   :global([data-platform='darwin']) :global([data-ds-dark-theme]) .sidebarCol {
     background: color-mix(in srgb, var(--dsw-specific-sidebar-fill) 90%, transparent);
   }
@@ -288,3 +279,6 @@
 .overlayLayer > * {
   pointer-events: auto;
 }
+
+.rightbarFloat { position: absolute; inset: 48px 12px 12px auto; z-index: 50; display: flex; min-height: 0; background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l4); border-radius: 12px; box-shadow: 0 12px 48px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent); }
+.rightbarFloat[hidden], .frame:has([data-simin-page]:not([data-simin-page='project'])) .rightbarFloat { display: none; }

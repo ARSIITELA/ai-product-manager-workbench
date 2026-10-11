@@ -150,10 +150,17 @@ export function registerComposerKeymap(editor: LexicalEditor, handlers: Composer
         event?.preventDefault()
         return true
       }
+      let requireModifier = false
+      try {
+        const preference: unknown = JSON.parse(localStorage.getItem('aipm.simin.preferences.v1') ?? '{}')
+        requireModifier = typeof preference === 'object' && preference !== null && 'sendMode' in preference && preference.sendMode === 'modEnter'
+      } catch (error: unknown) { void error /* A missing or invalid local preference uses the original Enter gesture. */ }
+      const modified = event?.ctrlKey === true || event?.metaKey === true
+      if (requireModifier && !modified) return false
       event?.preventDefault()
       if (event?.repeat === true) return true // held-down Enter must not machine-gun sends
       if (!handlers.canSubmit()) return true
-      handlers.submit(event?.ctrlKey === true || event?.metaKey === true)
+      handlers.submit(requireModifier ? false : modified)
       return true
     }, COMMAND_PRIORITY_CRITICAL),
     editor.registerCommand(PASTE_COMMAND, (event) => {

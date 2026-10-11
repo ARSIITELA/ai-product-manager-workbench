@@ -1,6 +1,7 @@
+// @vitest-environment jsdom
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { Context } from '@deepseek-ai/cordis'
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type {
   SessionListState, SessionReference, SessionSummary,
 } from '@deepseek-ai/dsh-api-session-controller/client'
@@ -29,6 +30,7 @@ import { UNGROUPED_KEY } from '../src/client/tree.ts'
 import { apply as hostApply } from '../src/index.ts'
 
 const sid = (id: string) => id as SessionId
+beforeEach(() => { localStorage.clear() })
 const summary = (id: string, updatedAt: number): SessionSummary => ({
   id: sid(id), displayTitle: id, running: false, blank: false, updatedAt, retainedBy: {},
 })
@@ -119,6 +121,7 @@ async function bench() {
     binding,
     subagentAddress: vi.fn(() => undefined),
     refreshProjections: vi.fn(() => Promise.resolve()),
+    refresh: vi.fn(() => Promise.resolve()),
     fork,
   } as never)
   const pickDirectory = vi.fn(() => Promise.resolve({ ok: true as const, value: '/projects/picked' }))
@@ -126,9 +129,7 @@ async function bench() {
   Object.assign(new TestRemote(ctx), { directoryPicker })
   ctx.provide('remote.directoryPicker', directoryPicker as never)
   const locale = new LocaleRuntime(ctx)
-  // These specs assert the shipped Chinese copy. There is no jsdom `window`
-  // in this lane, so browser-language detection never runs and the locale
-  // comes from FALLBACK_LOCALE (en): state the asserted locale explicitly.
+  // These specs assert the shipped Chinese copy independently of browser language.
   locale.setLocale('zh')
   ctx.provide('locale', locale)
   return {
@@ -178,6 +179,46 @@ function viewInstance(slots: SlotRegistry) {
 const settled = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0) })
 
 describe('ui-workspace apply', () => {
+  it('reopens the existing project conversation before a blank or a newer subagent', async () => {
+    const b = await bench()
+    onTestFinished(() => b.ctx.fiber.dispose())
+    b.setSessions(sessionState([
+      { ...summary('main', 2), cwd: '/projects/product' },
+      { ...summary('empty', 5), cwd: '/projects/product', blank: true },
+      { ...summary('child', 9), cwd: '/projects/product', origin: 'subagent', parentId: sid('main') },
+    ]))
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const open = vi.spyOn(b.ctx.uiWorkspace, 'openSession').mockImplementation(() => {})
+    window.dispatchEvent(new CustomEvent('aipm-open-project', { detail: '/projects/product' }))
+    await vi.waitFor(() => { expect(open).toHaveBeenCalledWith(sid('main')) })
+    expect(JSON.parse(localStorage.getItem('aipm.simin.sessions.v1') ?? '{}')).toEqual({ '/projects/product': 'main' })
+  })
+  it('prefers the remembered main conversation to a more recent independent conversation', async () => {
+    const b = await bench()
+    onTestFinished(() => b.ctx.fiber.dispose())
+    localStorage.setItem('aipm.simin.sessions.v1', JSON.stringify({ '/projects/product': 'main' }))
+    b.setSessions(sessionState([{ ...summary('main', 1), cwd: '/projects/product' }, { ...summary('other', 8), cwd: '/projects/product' }]))
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const open = vi.spyOn(b.ctx.uiWorkspace, 'openSession').mockImplementation(() => {})
+    window.dispatchEvent(new CustomEvent('aipm-open-project', { detail: '/projects/product' }))
+    await vi.waitFor(() => { expect(open).toHaveBeenCalledWith(sid('main')) })
+  })
+  it('reports a failed project connection and releases its event listener on disposal', async () => {
+    const b = await bench()
+    b.create.mockRejectedValueOnce(new Error('connection failed'))
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const error = vi.fn()
+    window.addEventListener('aipm-workspace-error', error)
+    onTestFinished(() => { window.removeEventListener('aipm-workspace-error', error) })
+    window.dispatchEvent(new CustomEvent('aipm-open-project', { detail: '/projects/product' }))
+    await vi.waitFor(() => { expect(error).toHaveBeenCalledOnce() })
+    await b.ctx.fiber.dispose()
+    b.create.mockClear()
+    window.dispatchEvent(new CustomEvent('aipm-open-project', { detail: '/projects/product' }))
+    await settled()
+    expect(b.create).not.toHaveBeenCalled()
+  })
+
   it('keeps the host Loader entry inert', () => {
     expect(hostApply).not.toThrow()
   })

@@ -13,7 +13,7 @@ Desktop analytics schedules partial batches every 30 seconds, with a 15-second e
 
 ## Summary
 
-Run `dsh --profile web` for browser chat, model and settings management, and session history, using the same model access, tools, and safety defaults as other dsh surfaces. Startup prints a tokenized URL and normally opens the default browser; SSH sessions and `--no-open` require manual opening. You can change the port and allow extra hosts, but cannot bind all network interfaces. Remote access supports an advertised public HTTP(S) URL behind a prefix-stripping proxy. For one-shot command-line tasks, use `dsh-headless`.
+This layer provides the local Simin workbench and the existing browser conversation, model settings, and session history. It owns project documents, reviewed saves, search, and recoverable trash. The Desktop profile manages its local service. Simin file routes accept loopback requests only; other Web capabilities retain the upstream deployment settings.
 
 ## Table of Contents
 
@@ -30,6 +30,14 @@ Run `dsh --profile web` for browser chat, model and settings management, and ses
 ## Use this package
 
 Start the GUI, open your browser, and start talking to the agent. The flags fine-tune the invocation.
+
+### Local workbench behavior
+
+Simin’s loopback-only `/aipm/*` routes own real project folders, Markdown/text reads, content-version mutations, trash, full-text search, and retained save proposals. Documents default to the current checkout’s `projects/` root; `SIMIN_PROJECT_ROOT` in the shipped patch can select another writable directory; `.simin/` retains trash and proposal metadata. Existing `write` and `edit` tools wait for preview confirmation in these project workspaces. Other workspaces delegate normally. Shell and script tools are refused in Simin projects to prevent bypassing confirmation. This policy uses tool events and does not change the Agent loop. File operations are serialized locally and reject stale content versions; external editors can still race between version checking and an OS write.
+
+The Desktop profile opens the existing in-memory conversation search index on its first search. Web keeps conversation full-text search disabled unless a deployment patch enables it.
+
+Run `dsh --profile web` for browser chat, model and settings management, and session history, using the same model access, tools, and safety defaults as other dsh surfaces. Startup prints a tokenized URL and normally opens the default browser; SSH sessions and `--no-open` require manual opening. You can change the port and allow extra hosts, but cannot bind all network interfaces. Remote access supports an advertised public HTTP(S) URL behind a prefix-stripping proxy. For one-shot command-line tasks, use `dsh-headless`.
 
 ### Starting the Web GUI
 
@@ -55,6 +63,7 @@ Saved model selections override the composition default. The settings card accep
 | `surfaceContext` | `true` | Give the agent GUI-orientation context and expose `DSH_WEB_URL` to its shell commands |
 | `publicUrl` | Unset | Advertised HTTP(S) application root; otherwise announce the listener's loopback URL |
 | `trustedHosts` | `[]` | Extra hosts allowed to reach the GUI from the network |
+| `projectRoot` | Checkout or runtime `projects/` | Workbench project directory; relative overrides resolve from the Host working directory |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-web-app) lists this runtime plugin's accepted fields and their JSDoc. The shipped composition inserts the `schedule` service row and the `ui-schedule` task page row, while the clock reading and the four reminder tools belong to the `standard`, `cordis`, and `ptc` presets. The `tool-subagent` and `tool-subagent-fork` rows in those presets deny the four tools, so a delegated child's scope never lists them.
 

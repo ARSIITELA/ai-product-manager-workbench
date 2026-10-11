@@ -43,6 +43,12 @@
     },
     {
       "path": "../../subprocess/subprocess"
+    },
+    {
+      "path": "../../core/tools"
+    },
+    {
+      "path": "../../core/agent"
     }
   ]
 }

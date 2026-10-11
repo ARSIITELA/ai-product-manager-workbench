@@ -7,6 +7,12 @@ export const zh = {
   'toggle.open': '打开侧边栏',
   'toggle.collapse': '收起侧边栏',
   'panels.label': '全局面板',
+  'product.current': '当前产品',
+  'product.name': '产品名称',
+  'product.stage': '阶段',
+  'product.unconnected': '流程尚未接入',
+  'product.outputs': '产出物',
+  'product.empty': '确认阶段后出现在这里',
 } satisfies Record<string, string>
 
 /** The sidebar namespace key union. */
@@ -19,4 +25,10 @@ export const en = {
   'toggle.open': 'Open sidebar',
   'toggle.collapse': 'Collapse sidebar',
   'panels.label': 'Global panels',
+  'product.current': 'Current product',
+  'product.name': 'Product name',
+  'product.stage': 'Stage',
+  'product.unconnected': 'Workflow not connected',
+  'product.outputs': 'Documents',
+  'product.empty': 'Confirmed stage documents appear here',
 } satisfies Record<SidebarKey, string>

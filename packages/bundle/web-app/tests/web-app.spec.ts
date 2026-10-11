@@ -13,13 +13,16 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import { IncomingMessage, ServerResponse } from 'node:http'
+import { Socket } from 'node:net'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import * as AppBoot from '@deepseek-ai/dsh-app-boot'
 import { createLaunchEnvironmentSnapshot, DSH_LAUNCH_ENVIRONMENT_KEY } from '@deepseek-ai/dsh-launch-environment'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import type { WebServer } from '@deepseek-ai/dsh-host-webserver'
+import type { WebRoute, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import { apply, Config, internals } from '../src/index.ts'
 
 vi.mock('node:child_process', async importOriginal => ({
@@ -73,18 +76,23 @@ function stageDist(): string {
 }
 
 /** A fake webServer capturing the fallback seat and index taps. */
-function fakeHttpServer(host: '127.0.0.1' | '0.0.0.0' = '127.0.0.1'): { server: WebServer; seat: () => unknown } {
+function fakeHttpServer(host: '127.0.0.1' | '0.0.0.0' = '127.0.0.1'): { server: WebServer; seat: () => unknown; routes: Map<string, WebRoute['handler']> } {
   let fallback: unknown
+  const routes = new Map<string, WebRoute['handler']>()
   const server = {
     host,
     port: 4567,
+    register: (route: WebRoute) => {
+      routes.set(route.path, route.handler)
+      return () => { routes.delete(route.path) }
+    },
     registerFallback: (handler: unknown) => {
       fallback = handler
       return () => { fallback = undefined }
     },
     renderIndex: (html: string) => html,
   } as unknown as WebServer
-  return { server, seat: () => fallback }
+  return { server, seat: () => fallback, routes }
 }
 
 /** Deterministic Host Connection face for URL publication and frontend injection. */
@@ -115,6 +123,52 @@ interface BashContribution {
 }
 
 describe('web-app runtime glue', () => {
+  it('defaults projects beside the checkout and resolves configured roots before activation', () => {
+    expect(new Config({}).projectRoot).toBe(fileURLToPath(new URL('../../../../../项目', import.meta.url)))
+    expect(new Config({ projectRoot: 'custom-projects' }).projectRoot).toBe(join(process.cwd(), 'custom-projects'))
+    expect(() => new Config({ projectRoot: ' ' })).toThrow('projectRoot must not be empty')
+  })
+
+  it('keeps configured project roots separate through Loader-mounted routes and disposes those routes', async () => {
+    stageDist()
+    const parent = mkdtempSync(join(tmpdir(), 'simin-roots-'))
+    onTestFinished(() =>{  rmSync(parent, { recursive: true, force: true }) })
+    const mounts = []
+    for (const name of ['first', 'second']) {
+      const root = join(parent, name)
+      mkdirSync(join(root, name), { recursive: true })
+      const ctx = new Context()
+      onTestFinished(() => ctx.fiber.dispose())
+      const { server, routes } = fakeHttpServer()
+      ctx.provide('webServer', server)
+      provideConnection(ctx)
+      await ctx.plugin(Loader)
+      ctx.loader.builtins.workbench = { apply, Config }
+      await ctx.loader.root.update([{ id: 'workbench', name: 'cordis:workbench', config: {
+        projectRoot: root, openBrowser: false, printUrl: false, surfaceContext: false,
+      } }])
+      await ctx.loader.await()
+      await ctx.loader.resolve('workbench').fiber?.await()
+      mounts.push({ ctx, routes, name, root })
+    }
+    for (const { ctx, routes, name, root } of mounts) {
+      const socket = new Socket()
+      Object.defineProperty(socket, 'remoteAddress', { value: '127.0.0.1' })
+      const req = new IncomingMessage(socket)
+      req.url = '/aipm/projects'
+      req.method = 'GET'
+      const res = new ServerResponse(req)
+      const end = vi.spyOn(res, 'end').mockImplementation(() => res)
+      try {
+        await routes.get('/aipm/projects')!(req, res)
+        expect(res.statusCode).toBe(200)
+        expect(JSON.parse(String(end.mock.calls[0]?.[0]))).toMatchObject({ projects: [{ name, path: join(root, name) }] })
+      } finally { socket.destroy() }
+      await ctx.fiber.dispose()
+      expect(routes.size).toBe(0)
+    }
+  })
+
   it('mounts dist serving, prompt section, bash variables, and publishes the URL with the LAN snapshot', async () => {
     stageDist()
     const ctx = new Context()

@@ -4,13 +4,44 @@
  * contenteditable reach the registered composer commands (the jsdom lane's
  * gesture entry, below the full component bench).
  */
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { fireEvent } from '@testing-library/react'
 import { $createParagraphNode, $createTextNode, $getRoot, createEditor } from 'lexical'
 import { registerPlainText } from '@lexical/plain-text'
 import { registerComposerKeymap } from '../src/client/input/editor/keymap.ts'
 
+beforeEach(() => { localStorage.removeItem('aipm.simin.preferences.v1') })
+
 describe('keymap keydown routing', () => {
+  it('uses plain Enter for a line break and Cmd+Enter to send when selected, preserving IME and menu arbitration', async () => {
+    localStorage.setItem('aipm.simin.preferences.v1', JSON.stringify({ sendMode: 'modEnter' }))
+    const editor = createEditor({ namespace: 'simin-mod-enter', onError: (error) => { throw error } })
+    const root = document.createElement('div')
+    root.contentEditable = 'true'
+    document.body.append(root)
+    editor.setRootElement(root)
+    onTestFinished(() => { editor.setRootElement(null); root.remove() })
+    onTestFinished(registerPlainText(editor))
+    const submit = vi.fn()
+    const arbitrate = vi.fn((): 'pass' | 'consumed' => 'pass')
+    onTestFinished(registerComposerKeymap(editor, {
+      arbitrate, space: () => false, dismissPopup: () => {}, canSubmit: () => true,
+      submit, intakeFiles: () => {}, pasteText: () => {},
+    }))
+    editor.update(() => { const paragraph = $createParagraphNode().append($createTextNode('draft')); $getRoot().append(paragraph); paragraph.selectEnd() }, { discrete: true })
+    fireEvent.keyDown(root, { key: 'Enter' })
+    await Promise.resolve()
+    expect(submit).not.toHaveBeenCalled()
+    expect(editor.getEditorState().read(() => $getRoot().getTextContent())).toContain('\n')
+    fireEvent.keyDown(root, { key: 'Enter', metaKey: true })
+    expect(submit).toHaveBeenCalledWith(false)
+    submit.mockClear()
+    fireEvent.keyDown(root, { key: 'Enter', metaKey: true, isComposing: true })
+    expect(submit).not.toHaveBeenCalled()
+    arbitrate.mockReturnValueOnce('consumed')
+    fireEvent.keyDown(root, { key: 'Enter', metaKey: true })
+    expect(submit).not.toHaveBeenCalled()
+  })
   it('clears composition presentation on root swaps and unregisters pending callbacks', async () => {
     const editor = createEditor({ namespace: 'composition-root', onError: (e) => { throw e } })
     const first = document.createElement('div')

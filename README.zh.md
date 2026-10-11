@@ -1,8 +1,10 @@
-# DeepSeek Harness
+# 小沼 Lab · AI 产品经理工作台
 
 [English](README.md) | 中文
 
-DeepSeek Harness（`dsh`）是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness（智能体框架）。
+小沼 Lab 是本机 AI 产品经理工作台，提供立项报告、PRD、竞品分析、AI 效果评估、提示词方案和版本规划六类文档任务。任务在项目对话中准备可编辑草稿，文档可下载为 Markdown。详见[工作台指南](packages/client/ui-layout/README.zh.md)。
+
+本工作台基于开源智能体框架 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)，该框架由 [DeepSeek AI](https://deepseek.com) 开发，保留其 [MIT 许可证](LICENSE)。使用定制界面时，请从本仓库源码运行。
 
 它构建于**一切皆插件**的架构之上，由 [Cordis](https://github.com/cordiverse/cordis) 驱动，其设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512)。
 
@@ -18,9 +20,9 @@ DeepSeek Harness 处于 _开发者预览_ 阶段，正在快速迭代。**未来
 
 ## 运行
 
-### 通过 `npm` 运行
+### 通过 `npm` 运行上游框架
 
-安装 `Node.js`，然后运行：
+npm 包启动的是上游框架。安装 `Node.js`，然后运行：
 
 ```sh
 npx @deepseek-ai/dsh web
@@ -32,11 +34,9 @@ npx @deepseek-ai/dsh web
 
 ### 从源码运行
 
-如需从仓库源码运行：
+如需运行本工作台，请在已下载或克隆的仓库目录中打开终端：
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
 pnpm install
 pnpm run build
 pnpm dsh web
