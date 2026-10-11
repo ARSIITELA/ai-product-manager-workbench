@@ -2,8 +2,10 @@
 import type {} from '../src/client/index.ts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
 import { SiminShell } from '../src/client/SiminShell.tsx'
-import { siminZh, type SiminKey } from '../src/client/simin-locales.ts'
+import { siminZh } from '../src/client/simin-locales.ts'
 import { saveSiminView, SIMIN_OPEN_PROJECT_EVENT } from '../src/client/simin-state.ts'
 import type { SiminSnapshot } from '../src/client/simin-api.ts'
 
@@ -11,7 +13,7 @@ const snapshot: SiminSnapshot = {
   root: '/projects', trash: [], proposals: [],
   projects: [{ name: '相机助手', path: '/projects/相机助手', documents: ['研究.md'], files: [{ name: '研究.md', modifiedAt: 1780272000000, bytes: 30, preview: '用户希望减少调参' }] }],
 }
-const copy = (key: SiminKey, values?: Record<string, string | number>): string => Object.entries(values ?? {}).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, String(value)), siminZh[key])
+const copy = makeTranslate(siminZh, commonZh)
 let requests: { path: string; payload?: Record<string, unknown> }[]
 let failCreate: boolean
 beforeEach(() => {
@@ -90,19 +92,19 @@ describe('AI product workbench', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: siminZh.taskStart }))
     await screen.findByRole('alert')
     expect(within(dialog).getByText(siminZh.duplicate)).toBeTruthy()
-    expect((within(dialog).getByLabelText(siminZh.taskBrief)).value).toBe('测量问答的引用准确率')
+    expect(within(dialog).getByLabelText<HTMLTextAreaElement>(siminZh.taskBrief).value).toBe('测量问答的引用准确率')
     expect(localStorage.getItem('aipm.simin.v1')).toBeNull()
   })
   it('downloads the selected document without changing its contents', async () => {
     saveSiminView({ project: '相机助手', file: '研究.md', page: 'project', tab: 'document' })
     const createObjectURL = vi.fn(() => 'blob:workbench-document')
-    vi.stubGlobal('URL', class extends URL { static createObjectURL = createObjectURL; static revokeObjectURL = vi.fn() })
+    vi.stubGlobal('URL', class extends URL { static override createObjectURL = createObjectURL; static override revokeObjectURL = vi.fn() })
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     render(<SiminShell chat={<div>conversation</div>} nativeSettings={<div>settings host</div>} t={copy} />)
     await screen.findByText('用户希望减少调参。')
     fireEvent.click(screen.getByRole('button', { name: siminZh.download }))
     expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
-    const anchor = click.mock.instances[0]
+    const anchor = click.mock.contexts[0] as HTMLAnchorElement | undefined
     expect(anchor?.download).toBe('研究.md')
     expect(anchor?.href).toBe('blob:workbench-document')
     expect(requests.some(request => request.payload !== undefined)).toBe(false)
