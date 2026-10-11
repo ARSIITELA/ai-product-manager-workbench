@@ -57,7 +57,7 @@
   margin-top: 12px;
   height: 32px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-label-primary);
   color: var(--dsw-alias-bg-base);
   font: inherit;

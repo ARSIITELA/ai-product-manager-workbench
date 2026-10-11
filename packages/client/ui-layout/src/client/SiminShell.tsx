@@ -353,7 +353,7 @@ export function SiminShell({ chat, nativeSettings, t }: { chat: ReactNode; nativ
 
   return <div className={`${css.shell} ${focus ? css.focused : ''}`} data-simin-page={page} data-reduced={prefs.reduced || undefined}>
     <aside className={`${css.side} ${navOpen ? css.sideOpen : ''}`}>
-      <div className={css.brand}><span className={css.orb}><AipmMark size={36} /></span><div>{t('brand')}<small>{t('personal')}</small></div></div>
+      <div className={css.brand} data-window-drag="true"><span className={css.orb}><AipmMark size={36} /></span><div>{t('brand')}<small>{t('personal')}</small></div></div>
       <button type="button" className={css.sideSearch} onClick={() => { setSearchOpen(true); setSearchIndex(0) }}><IconSearchOutlineRegular size={15} /><span>{t('search')}</span><kbd>{t('searchShortcut')}</kbd></button>
       <nav className={css.sideNav} aria-label={t('navLabel')}>{([['home', 'workbench'], ['templates', 'templates'], ['documents', 'documents']] as const).map(([entry, icon]) => <button key={entry} type="button" aria-current={page === entry ? 'page' : undefined} className={`${css.navItem} ${page === entry ? css.active : ''}`} onClick={() => { navigate(entry) }}><SiminIcon name={icon} size={17} /><span>{t(entry)}</span>{entry === 'documents' && <small>{allFiles.length}</small>}</button>)}</nav>
       <div className={css.divider} />
@@ -370,7 +370,7 @@ export function SiminShell({ chat, nativeSettings, t }: { chat: ReactNode; nativ
     </aside>
     {navOpen && <button className={css.navMask} aria-label={t('close')} onClick={() => { setNavOpen(false) }} />}
     <main className={css.main}>
-      <header className={css.header}>{iconButton('navToggle', () => { setNavOpen(!navOpen) }, <IconPanelLeftOutlineRegular size={17} />)}<span className={css.breadcrumb}>{t('workspaceTitle')}<IconChevronRightOutlineRegular size={12} /><span>{page === 'project' ? view.project : t(page)}</span></span><span className={css.headerSpacer} />{focus ? button('exitFocus', () => { setFocus(false) }) : button('newTask', () => { startTask('initiation') }, true, <IconPlusOutlineRegular size={14} />)}{iconButton('search', () => { setSearchOpen(true); setSearchIndex(0) }, <IconSearchOutlineRegular size={18} />)}</header>
+      <header className={css.header} data-window-drag="true">{iconButton('navToggle', () => { setNavOpen(!navOpen) }, <IconPanelLeftOutlineRegular size={17} />)}<span className={css.breadcrumb}>{t('workspaceTitle')}<IconChevronRightOutlineRegular size={12} /><span>{page === 'project' ? view.project : t(page)}</span></span><span className={css.headerSpacer} />{focus ? button('exitFocus', () => { setFocus(false) }) : button('newTask', () => { startTask('initiation') }, true, <IconPlusOutlineRegular size={14} />)}{iconButton('search', () => { setSearchOpen(true); setSearchIndex(0) }, <IconSearchOutlineRegular size={18} />)}</header>
       {loadError && <div className={css.notice} role="status">{t('loadingError')}{button('retry', () => { void refresh() })}</div>}
       <div className={css.content}>
         {loading ? <div className={css.loading}><span className={css.spinner} /></div> : page === 'home' ? <div className={css.home}>

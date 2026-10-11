@@ -280,5 +280,5 @@
   pointer-events: auto;
 }
 
-.rightbarFloat { position: absolute; inset: 48px 12px 12px auto; z-index: 50; display: flex; min-height: 0; background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l4); border-radius: 12px; box-shadow: 0 12px 48px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent); }
+.rightbarFloat { position: absolute; inset: 48px 12px 12px auto; z-index: 50; display: flex; min-height: 0; background: var(--dsw-alias-bg-base); border: 0.5px solid var(--dsw-alias-border-l4); border-radius: var(--dsw-radius-md); box-shadow: 0 12px 48px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent); }
 .rightbarFloat[hidden], .frame:has([data-simin-page]:not([data-simin-page='project'])) .rightbarFloat { display: none; }
